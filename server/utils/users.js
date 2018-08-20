@@ -26,6 +26,12 @@ class Users {
     var namesArray = users.map((user) => user.name);
     return namesArray;
   }
+
+  checkDuplicateUser(name, room){
+    var users = this.getUserList(room);
+    return users.filter((user) => user === name).length;
+  }
+
 }
 
 module.exports = {Users}

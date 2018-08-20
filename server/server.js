@@ -13,6 +13,13 @@ var server = http.createServer(app);
 var io = socketIO(server);
 var users = new Users();
 
+/*
+future enhancements
+make chat room name case insensative; --dane
+same name is not allowed in same Room --done
+show active rooms dropdown list at join page
+*/
+
 app.use(express.static(publichPath));
 
 io.on('connection', (socket) =>{
@@ -20,12 +27,17 @@ io.on('connection', (socket) =>{
 
   socket.on('join', (params, callback) =>{
     if(!isRealString(params.name) || !isRealString(params.room)){
-      callback('Name and Romm name are required!');
+      callback('Name and Room name are required!');
     }
-    socket.join(params.room);
+    var userRoom = params.room.toLowerCase();
+    if(users.checkDuplicateUser(params.name, userRoom)){
+      callback('User name already taken in this room. Please choose different user name.');
+    }
+
+    socket.join(userRoom);
     users.removeUser(socket.id);
-    users.addUser(socket.id, params.name, params.room);
-    io.to(params.room).emit('updateUserList', users.getUserList(params.room));
+    users.addUser(socket.id, params.name, userRoom);
+    io.to(userRoom).emit('updateUserList', users.getUserList(userRoom));
 
     //socket.leave('The office room');
 
@@ -39,7 +51,7 @@ io.on('connection', (socket) =>{
 
       socket.emit('newMessage', generateMessage('Admin', 'Welcome to the chat app'));
 
-      socket.broadcast.to(params.room).emit('newMessage', generateMessage('Admin', `${params.name} has joined.`));
+      socket.broadcast.to(userRoom).emit('newMessage', generateMessage('Admin', `${params.name} has joined.`));
 
     callback();
   });
@@ -62,7 +74,6 @@ io.on('connection', (socket) =>{
   socket.on('disconnect', () => {
       var user = users.removeUser(socket.id);
       if (user) {
-        console.log('user', user);
         io.to(user.room).emit('updateUserList', users.getUserList(user.room));
         io.to(user.room).emit('newMessage', generateMessage('Admin', `${user.name} has left.`));
       }
